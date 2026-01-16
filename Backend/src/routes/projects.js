@@ -1,9 +1,9 @@
-const express = require("express");
-const router = express.Router();
-const Project = require("../models/Project");
-const authMiddleware = require("../middleware/auth");
+import express from "express";
+import Project from "../models/Project.js";
+import authMiddleware from "../middleware/auth.js";
 
-// Get all projects for logged-in user
+const router = express.Router();
+
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const projects = await Project.find({ userId: req.userId }).sort({
@@ -16,7 +16,6 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// Get single project
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const project = await Project.findOne({
@@ -35,7 +34,6 @@ router.get("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Create project
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const { name, systemPrompt } = req.body;
@@ -54,7 +52,6 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-// Update project
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const { name, systemPrompt } = req.body;
@@ -62,7 +59,7 @@ router.put("/:id", authMiddleware, async (req, res) => {
     const project = await Project.findOneAndUpdate(
       { _id: req.params.id, userId: req.userId },
       { name, systemPrompt, updatedAt: Date.now() },
-      { new: true }
+      { new: true },
     );
 
     if (!project) {
@@ -76,7 +73,6 @@ router.put("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Delete project
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const project = await Project.findOneAndDelete({
@@ -95,4 +91,4 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

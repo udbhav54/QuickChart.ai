@@ -1,16 +1,15 @@
-const express = require("express");
-const router = express.Router();
-const axios = require("axios");
-const Message = require("../models/Message");
-const Project = require("../models/Project");
-const authMiddleware = require("../middleware/auth");
+import express from "express";
+import axios from "axios";
+import Message from "../models/Message.js";
+import Project from "../models/Project.js";
+import authMiddleware from "../middleware/auth.js";
 
-// Get chat history for a project
+const router = express.Router();
+
 router.get("/:projectId", authMiddleware, async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    // Verify project belongs to user
     const project = await Project.findOne({
       _id: projectId,
       userId: req.userId,
@@ -27,13 +26,11 @@ router.get("/:projectId", authMiddleware, async (req, res) => {
   }
 });
 
-// Send message and get AI response
 router.post("/:projectId", authMiddleware, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { message } = req.body;
 
-    // Verify project belongs to user
     const project = await Project.findOne({
       _id: projectId,
       userId: req.userId,
@@ -42,7 +39,6 @@ router.post("/:projectId", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Save user message
     const userMessage = new Message({
       projectId,
       role: "user",
@@ -50,37 +46,46 @@ router.post("/:projectId", authMiddleware, async (req, res) => {
     });
     await userMessage.save();
 
-    // Get chat history
     const history = await Message.find({ projectId })
       .sort({ createdAt: 1 })
       .limit(20);
 
-    // Prepare messages for OpenAI
-    const messages = [
-      { role: "system", content: project.systemPrompt },
-      ...history.map((msg) => ({ role: msg.role, content: msg.content })),
-    ];
+    // Build conversation history
+    const conversationHistory = [
+      `System: ${project.systemPrompt}`,
+      ...history.map(
+        (msg) =>
+          `${msg.role === "user" ? "User" : "Assistant"}: ${msg.content}`,
+      ),
+    ].join("\n\n");
 
-    // Call OpenAI API
+    // Call Google Gemini API with correct model name
     const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
-        model: "gpt-3.5-turbo",
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 500,
+        contents: [
+          {
+            parts: [
+              {
+                text: conversationHistory,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 500,
+        },
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
-    const aiResponse = response.data.choices[0].message.content;
+    const aiResponse = response.data.candidates[0].content.parts[0].text;
 
-    // Save AI response
     const assistantMessage = new Message({
       projectId,
       role: "assistant",
@@ -101,12 +106,10 @@ router.post("/:projectId", authMiddleware, async (req, res) => {
   }
 });
 
-// Clear chat history
 router.delete("/:projectId", authMiddleware, async (req, res) => {
   try {
     const { projectId } = req.params;
 
-    // Verify project belongs to user
     const project = await Project.findOne({
       _id: projectId,
       userId: req.userId,
@@ -123,4 +126,4 @@ router.delete("/:projectId", authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
