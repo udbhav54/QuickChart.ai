@@ -1,14 +1,10 @@
-import express from "express";
+import app from "./app.js";
+import { connectToDatabase } from "./db/connection.js";
 
+// connections and listeneres
 
-const app = express();
-
-// middelware to read the data in json
-app.use(express.json())
-// routes
-app.put("/hello", (req, res, next)=>{
-  console.log(req.body.name)
-  return res.send("Hello")
-})
-
-app.listen(5000, ()=>console.log("Server open"))
+connectToDatabase()
+  .then(() => {
+    app.listen(process.env.PORT, () => console.log("Server Open & Connected To Database"));
+  })
+  .catch((err) => console.log(err));
