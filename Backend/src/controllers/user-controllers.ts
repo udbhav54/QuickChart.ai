@@ -55,7 +55,9 @@ export const userSignup = async (
       signed: true,
     });
     
-    return res.status(201).json({ message: "OK", id: user._id.toString() });
+    return res
+      .status(201)
+      .json({ message: "OK", name: user.name, email: user.email });
   } catch (error) {
     console.log(error);
     if (error instanceof Error) {
@@ -102,7 +104,7 @@ export const userLogin = async (
       signed: true,
     });
 
-    return res.status(200).json({ message: "OK", id: user._id.toString() });
+    return res.status(200).json({ message: "OK", name:user.name, email: user.email});
   } catch (error) {
     console.log(error);
     if (error instanceof Error) {
@@ -111,3 +113,34 @@ export const userLogin = async (
     return res.status(500).json({ message: "Error", cause: "Unknown error" });
   }
 };
+
+
+export const verifyUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  // user token check
+  try {
+    
+
+     const user = await User.findById(res.locals.jwtData.id);
+    if (!user) {
+      return res.status(401).send("User not registered OR Token malfunctioned");
+    }
+    console.log(user._id.toString(), res.locals.jwtData.id)
+    if (user._id.toString() !== res.locals.jwtData.id) {
+       return res.status(401).send("Permissions didn't match");
+    }
+    return res
+      .status(200)
+      .json({ message: "OK", name: user.name, email: user.email });
+  } catch (error) {
+    console.log(error);
+    if (error instanceof Error) {
+      return res.status(500).json({ message: "Error", cause: error.message });
+    }
+    return res.status(500).json({ message: "Error", cause: "Unknown error" });
+  }
+};
+
